@@ -12,15 +12,15 @@ The only official account of mine is now @firefox.lol
 
 Marlow Client is a private Fabric client focused on combat automation, movement utilities, rendering tools, and quality-of-life systems for PvP-oriented gameplay. Newly rewritten and rearchitected for Minecraft 26.1.2.
 
-<a href="https://www.star-history.com/?repos=nxghtCry0%2Fmarlowwwclient&type=date&legend=top-left">
+<a href="https://www.star-history.com/?repos=nxghtCry0%2Fmarlowwwclient-1.21.11&type=date&legend=top-left">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=nxghtCry0/marlowwwclient&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=nxghtCry0/marlowwwclient&type=date&legend=top-left" />
-   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=nxghtCry0/marlowwwclient&type=date&legend=top-left" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=nxghtCry0/marlowwwclient-1.21.11&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=nxghtCry0/marlowwwclient-1.21.11&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=nxghtCry0/marlowwwclient-1.21.11&type=date&legend=top-left" />
  </picture>
 </a>
 
-<a href="https://github.com/nxghtCry0/marlowwwclient/commits/main">
+<a href="https://github.com/nxghtCry0/marlowwwclient-1.21.11/commits/main">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://github-readme-activity-graph.vercel.app/graph?username=nxghtCry0&theme=react-dark&hide_border=true&area=true&custom_title=Marlowww%20Client%20Commit%20Activity" />
     <source media="(prefers-color-scheme: light)" srcset="https://github-readme-activity-graph.vercel.app/graph?username=nxghtCry0&theme=github&hide_border=true&area=true&custom_title=Marlowww%20Client%20Commit%20Activity" />
@@ -50,8 +50,8 @@ Marlow Client is a private Fabric client focused on combat automation, movement 
 Clone the repository:
 
 ```powershell
-git clone https://github.com/nxghtCry0/marlowwwclient.git
-cd marlowwwclient
+git clone https://github.com/nxghtCry0/marlowwwclient-1.21.11.git
+cd marlowwwclient-1.21.11
 ```
 
 Run the client in a development environment:
