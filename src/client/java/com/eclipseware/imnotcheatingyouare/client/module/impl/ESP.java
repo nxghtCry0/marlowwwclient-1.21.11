@@ -1,0 +1,271 @@
+package com.eclipseware.imnotcheatingyouare.client.module.impl;
+
+import com.eclipseware.imnotcheatingyouare.client.ImnotcheatingyouareClient;
+import com.eclipseware.imnotcheatingyouare.client.module.Category;
+import com.eclipseware.imnotcheatingyouare.client.module.Module;
+import com.eclipseware.imnotcheatingyouare.client.setting.Setting;
+import com.eclipseware.imnotcheatingyouare.client.utils.FontUtils;
+import com.eclipseware.imnotcheatingyouare.client.utils.RenderUtils;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.player.Player;
+import org.joml.Vector3d;
+
+import java.awt.Color;
+
+public class ESP extends Module {
+
+    public ESP() {
+        super("ESP", Category.Render);
+    }
+
+    private static final Vector3d[] projBuffer = new Vector3d[8];
+    static {
+        for (int i = 0; i < 8; i++) {
+            projBuffer[i] = new Vector3d();
+        }
+    }
+
+    private static final Color MOB_COLOR = new Color(255, 85, 85);
+    private static final int FILL_COLOR = 0x23000000;
+
+    private Setting modeSetting;
+    private Setting mobsSetting;
+    private Setting fillSetting;
+    private Setting healthSetting;
+    private Setting namesSetting;
+    private Setting outlineSetting;
+    private Setting borderSetting;
+    private Setting cornerGapSetting;
+
+    private void cacheSettings() {
+        if (modeSetting == null) {
+            modeSetting = ImnotcheatingyouareClient.INSTANCE.settingsManager.getSettingByName(this, "Mode");
+            mobsSetting = ImnotcheatingyouareClient.INSTANCE.settingsManager.getSettingByName(this, "Show Mobs");
+            fillSetting = ImnotcheatingyouareClient.INSTANCE.settingsManager.getSettingByName(this, "Fill");
+            healthSetting = ImnotcheatingyouareClient.INSTANCE.settingsManager.getSettingByName(this, "Health");
+            namesSetting = ImnotcheatingyouareClient.INSTANCE.settingsManager.getSettingByName(this, "Names");
+            outlineSetting = ImnotcheatingyouareClient.INSTANCE.settingsManager.getSettingByName(this, "Outline Thickness");
+            borderSetting = ImnotcheatingyouareClient.INSTANCE.settingsManager.getSettingByName(this, "Border");
+            cornerGapSetting = ImnotcheatingyouareClient.INSTANCE.settingsManager.getSettingByName(this, "Corner Gap");
+        }
+    }
+
+    @Override
+    public void onRenderHUD(net.minecraft.client.gui.GuiGraphics guiGraphics, Object tickDeltaObj) {
+        if (!isToggled() || mc.player == null || mc.level == null) return;
+
+        Module bypassMod = ImnotcheatingyouareClient.INSTANCE.moduleManager.getModule("Bypass");
+        if (bypassMod != null && bypassMod.isToggled()) return;
+
+        float partialTick = getTickDelta(tickDeltaObj);
+
+        cacheSettings();
+
+        String mode = modeSetting != null ? modeSetting.getValString() : "Outline";
+        if (mode.equals("Glow")) return;
+
+        boolean showMobs = mobsSetting != null && mobsSetting.getValBoolean();
+        boolean doFill = fillSetting == null || fillSetting.getValBoolean();
+        boolean showHealth = healthSetting == null || healthSetting.getValBoolean();
+        boolean showNames = namesSetting == null || namesSetting.getValBoolean();
+        int outlineThickness = outlineSetting != null ? (int) outlineSetting.getValDouble() : 1;
+        boolean doBorder = borderSetting == null || borderSetting.getValBoolean();
+
+        boolean useCorner = mode.equals("Outline") || mode.equals("Hybrid");
+        float cornerGap = cornerGapSetting != null ? (float) cornerGapSetting.getValDouble() : 50f;
+
+        Color themeColor = RenderUtils.getThemeAccentColor();
+
+        for (Entity entity : mc.level.entitiesForRendering()) {
+            if (entity == mc.player || !(entity instanceof LivingEntity le) || !le.isAlive()) continue;
+            double dist = mc.player.distanceTo(entity);
+            if (dist > 64.0) continue;
+            boolean isPlayer = entity instanceof Player;
+            boolean isMob = entity instanceof Mob;
+            if (!isPlayer && !(isMob && showMobs)) continue;
+
+            Color color = isPlayer ? themeColor : MOB_COLOR;
+
+            double x = net.minecraft.util.Mth.lerp(partialTick, entity.xo, entity.getX());
+            double y = net.minecraft.util.Mth.lerp(partialTick, entity.yo, entity.getY());
+            double z = net.minecraft.util.Mth.lerp(partialTick, entity.zo, entity.getZ());
+            float hw = entity.getBbWidth() / 2.0f;
+            float h = entity.getBbHeight();
+
+            double minX = Double.MAX_VALUE, minY = Double.MAX_VALUE;
+            double maxX = -Double.MAX_VALUE, maxY = -Double.MAX_VALUE;
+            boolean valid = false;
+
+            for (int i = 0; i < 8; i++) {
+                double cx = x + ((i & 1) == 0 ? -hw : hw);
+                double cy = y + ((i & 2) == 0 ? 0 : h);
+                double cz = z + ((i & 4) == 0 ? -hw : hw);
+
+                if (RenderUtils.project2D(cx, cy, cz, partialTick, projBuffer[i])) {
+                    valid = true;
+                    double px = projBuffer[i].x;
+                    double py = projBuffer[i].y;
+                    if (px < minX) minX = px;
+                    if (px > maxX) maxX = px;
+                    if (py < minY) minY = py;
+                    if (py > maxY) maxY = py;
+                }
+            }
+            if (!valid) continue;
+
+            float rectW = (float)(maxX - minX);
+            float rectH = (float)(maxY - minY);
+            float alpha = Math.max(0.3f, 1.0f - (float)(dist / 64.0));
+            int oa = (int)(alpha * 255);
+            int oc = (oa << 24) | (color.getRed() << 16) | (color.getGreen() << 8) | color.getBlue();
+            int black = (oa << 24);
+            int ix = (int) minX, iy = (int) minY, ix2 = (int) maxX, iy2 = (int) maxY;
+            int t = outlineThickness;
+
+            if (doFill) {
+                guiGraphics.fill(ix + t, iy + t, ix2 - t, iy2 - t, FILL_COLOR);
+            }
+
+            if (useCorner) {
+                float gapPct = Math.min(1f, Math.max(0f, cornerGap / 100f));
+                int cw = (int)(rectW * (1f - gapPct) / 2f);
+                int ch = (int)(rectH * (1f - gapPct) / 2f);
+                cw = Math.max(cw, 3);
+                ch = Math.max(ch, 3);
+
+                if (doBorder) {
+                    drawCornerBox(guiGraphics, ix - 1, iy - 1, ix2 + 1, iy2 + 1, cw + 1, ch + 1, 1, black);
+                    drawCornerBox(guiGraphics, ix + t, iy + t, ix2 - t, iy2 - t, cw - t, ch - t, 1, black);
+                }
+                drawCornerBox(guiGraphics, ix, iy, ix2, iy2, cw, ch, t, oc);
+            } else {
+                if (doBorder) {
+                    drawBox(guiGraphics, ix - 1, iy - 1, ix2 + 1, iy2 + 1, 1, black);
+                    drawBox(guiGraphics, ix + t, iy + t, ix2 - t, iy2 - t, 1, black);
+                }
+                drawBox(guiGraphics, ix, iy, ix2, iy2, t, oc);
+            }
+
+            if (showHealth) {
+                float maxHp = le.getMaxHealth();
+                float pct = Math.min(1f, Math.max(0f, le.getHealth() / Math.max(1f, maxHp)));
+                Color hpColor = RenderUtils.getHealthColor(pct);
+                int barH = (int)(rectH * pct);
+                int barX = ix - 6;
+
+                int hpRGB = (oa << 24) | (hpColor.getRed() << 16) | (hpColor.getGreen() << 8) | hpColor.getBlue();
+                int bgRGB = ((int)(alpha * 160) << 24);
+
+                guiGraphics.fill(barX - 1, iy - 1, barX + 2, iy2 + 1, bgRGB);
+                guiGraphics.fill(barX, iy2 - barH, barX + 1, iy2, hpRGB);
+            }
+
+            if (showNames) {
+                String name = entity.getName().getString();
+                double d = Math.round(dist * 10.0) / 10.0;
+                String distStr = " [" + d + "m]";
+                String fullText = name + distStr;
+                int textWidth = FontUtils.width(fullText);
+                int textX = (int)(minX + rectW / 2 - textWidth / 2);
+                int textY = iy - 12;
+
+                int nameBgColor = ((int)(alpha * 120) << 24);
+                int nameDistColor = (oa << 24) | (200 << 16) | (200 << 8) | 200;
+
+                guiGraphics.fill(textX - 3, textY - 2, textX + textWidth + 3, textY + 9, nameBgColor);
+                FontUtils.drawString(guiGraphics, name, textX, textY, Color.WHITE.getRGB(), true);
+                FontUtils.drawString(guiGraphics, distStr, textX + FontUtils.width(name), textY, nameDistColor, true);
+            }
+        }
+    }
+
+    private void drawBox(net.minecraft.client.gui.GuiGraphics g, int x1, int y1, int x2, int y2, int thickness, int color) {
+        g.fill(x1, y1, x2, y1 + thickness, color);
+        g.fill(x1, y2 - thickness, x2, y2, color);
+        g.fill(x1, y1 + thickness, x1 + thickness, y2 - thickness, color);
+        g.fill(x2 - thickness, y1 + thickness, x2, y2 - thickness, color);
+    }
+
+    private void drawCornerBox(net.minecraft.client.gui.GuiGraphics g, int x1, int y1, int x2, int y2, int cw, int ch, int thickness, int color) {
+        g.fill(x1, y1, x1 + cw, y1 + thickness, color);
+        g.fill(x1, y1 + thickness, x1 + thickness, y1 + ch, color);
+
+        g.fill(x2 - cw, y1, x2, y1 + thickness, color);
+        g.fill(x2 - thickness, y1 + thickness, x2, y1 + ch, color);
+
+        g.fill(x1, y2 - thickness, x1 + cw, y2, color);
+        g.fill(x1, y2 - ch, x1 + thickness, y2 - thickness, color);
+
+        g.fill(x2 - cw, y2 - thickness, x2, y2, color);
+        g.fill(x2 - thickness, y2 - ch, x2, y2 - thickness, color);
+    }
+
+    public boolean shouldGlow() {
+        if (!isToggled()) return false;
+        cacheSettings();
+        String mode = modeSetting != null ? modeSetting.getValString() : "2D";
+        return mode.equals("Glow") || mode.equals("Both");
+    }
+
+    private static java.lang.reflect.Method cachedTickDeltaMethod = null;
+    private static Class<?> cachedTickDeltaClass = null;
+    private static Object[] cachedTickDeltaArgs = null;
+    private static boolean tickDeltaResolved = false;
+
+    private float getTickDelta(Object tickDeltaObj) {
+        if (tickDeltaObj instanceof Float) return (Float) tickDeltaObj;
+        if (tickDeltaObj == null) return 1.0f;
+
+        Class<?> clazz = tickDeltaObj.getClass();
+        if (tickDeltaResolved && clazz == cachedTickDeltaClass) {
+            if (cachedTickDeltaMethod != null) {
+                try {
+                    return (float) cachedTickDeltaMethod.invoke(tickDeltaObj, cachedTickDeltaArgs);
+                } catch (Exception e) {
+                    return 1.0f;
+                }
+            }
+            return 1.0f;
+        }
+
+        cachedTickDeltaClass = clazz;
+        cachedTickDeltaMethod = null;
+        cachedTickDeltaArgs = null;
+        tickDeltaResolved = true;
+
+        for (java.lang.reflect.Method m : clazz.getMethods()) {
+            if (m.getReturnType() == float.class) {
+                if (m.getParameterCount() == 0) {
+                    String name = m.getName().toLowerCase();
+                    if (name.contains("tick") || name.contains("delta") || name.contains("frame")) {
+                        try {
+                            m.setAccessible(true);
+                            float val = (float) m.invoke(tickDeltaObj);
+                            cachedTickDeltaMethod = m;
+                            cachedTickDeltaArgs = new Object[0];
+                            return val;
+                        } catch (Exception e) {}
+                    }
+                }
+            }
+        }
+
+        for (java.lang.reflect.Method m : clazz.getMethods()) {
+            if (m.getReturnType() == float.class) {
+                if (m.getParameterCount() == 1 && m.getParameterTypes()[0] == boolean.class) {
+                    try {
+                        m.setAccessible(true);
+                        float val = (float) m.invoke(tickDeltaObj, true);
+                        cachedTickDeltaMethod = m;
+                        cachedTickDeltaArgs = new Object[]{true};
+                        return val;
+                    } catch (Exception e) {}
+                }
+            }
+        }
+
+        return 1.0f;
+    }
+}

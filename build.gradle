@@ -1,0 +1,148 @@
+plugins {
+    // For Minecraft 1.21.11 (which still ships obfuscated jars), use the regular
+    // `fabric-loom` plugin (LoomGradlePlugin) — NOT `net.fabricmc.fabric-loom`,
+    // which maps to LoomNoRemapGradlePlugin intended for unobfuscated MC (26.1.x+).
+    id 'fabric-loom' version '1.17.12'
+    id 'maven-publish'
+}
+
+version = project.mod_version
+group = project.maven_group
+
+base {
+    archivesName = project.archives_base_name
+}
+
+loom {
+    splitEnvironmentSourceSets()
+
+    mods {
+        "imnotcheatingyouare" {
+            sourceSet sourceSets.main
+            sourceSet sourceSets.client
+        }
+    }
+
+    // Note: The mixin annotation processor (and refmap generation) is disabled by
+    // default in Loom 1.17+. Fabric Loader 0.19+ resolves Mojang-named mixin
+    // targets at runtime via its own mapping system, so a refmap is no longer
+    // required for Minecraft 1.21.11.
+
+    runs {
+        client {
+            vmArg "--enable-native-access=ALL-UNNAMED"
+            vmArg "-Doshi.os.windows.perfos.disabled=true"
+            vmArg "-Dorg.joml.unsafe=false"
+        }
+    }
+}
+
+fabricApi {
+    configureDataGeneration {
+        client = true
+    }
+}
+
+repositories {
+    // Add repositories to retrieve artifacts from in here.
+    // You should only use this when depending on other mods because
+    // Loom adds the essential maven repositories to download Minecraft and libraries from automatically.
+    // See https://docs.gradle.org/current/userguide/declaring_repositories.html
+    // for more information about repositories.
+    mavenCentral()
+    maven { url 'https://jitpack.io' }
+}
+
+dependencies {
+    // To change the versions see the gradle.properties file
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+
+    // Use Mojang's official mappings (client.txt + server.txt provided by Mojang)
+    // gradle.properties sets fabric.loom.disableObfuscation=false to keep Loom in obfuscated
+    // mode, which is required to apply Mojang mappings to Minecraft 1.21.11.
+    mappings loom.officialMojangMappings()
+
+    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+
+    // LWJGL NanoVG — MUST match Minecraft 1.21.11's LWJGL version (3.3.3).
+    // Using a newer LWJGL (e.g. 3.4.1) forces lwjgl-core to upgrade, which causes
+    // AbstractMethodError at runtime because MC's GLFW callback lambdas are
+    // compiled against the older LWJGL API (missing getDescriptor()).
+    implementation "org.lwjgl:lwjgl-nanovg:3.3.3"
+    runtimeOnly "org.lwjgl:lwjgl-nanovg:3.3.3:natives-windows"
+    runtimeOnly "org.lwjgl:lwjgl-nanovg:3.3.3:natives-linux"
+    runtimeOnly "org.lwjgl:lwjgl-nanovg:3.3.3:natives-macos"
+
+    implementation "io.github.spair:imgui-java-binding:1.86.10"
+    implementation("io.github.spair:imgui-java-lwjgl3:1.86.10") {
+        exclude group: "org.lwjgl"
+    }
+    runtimeOnly "io.github.spair:imgui-java-natives-windows:1.86.10"
+}
+
+processResources {
+    inputs.property "version", project.version
+    inputs.property "minecraft_version", project.minecraft_version
+    inputs.property "loader_version", project.loader_version
+    filteringCharset "UTF-8"
+
+    filesMatching("fabric.mod.json") {
+        expand "version": project.version,
+                "minecraft_version": project.minecraft_version,
+                "loader_version": project.loader_version
+    }
+}
+
+def targetJavaVersion = 21
+tasks.withType(JavaCompile).configureEach {
+    // ensure that the encoding is set to UTF-8, no matter what the system default is
+    // this fixes some edge cases with special characters not displaying correctly
+    // see http://yodaconditions.net/blog/fix-for-java-file-encoding-problems-with-gradle.html
+    // If Javadoc is generated, this must be specified in that task too.
+    it.options.encoding = "UTF-8"
+    it.options.compilerArgs << "-Xlint:deprecation"
+    if (targetJavaVersion >= 10 || JavaVersion.current().isJava10Compatible()) {
+        it.options.release.set(targetJavaVersion)
+    }
+}
+
+tasks.withType(JavaExec).configureEach {
+    jvmArgs("--enable-native-access=ALL-UNNAMED", "-Doshi.os.windows.perfos.disabled=true", "-Dorg.joml.unsafe=false")
+}
+
+java {
+    // Always force the Java 21 toolchain — Minecraft 1.21.11 requires Java 21,
+    // and running the game with a newer JDK (e.g. Java 25) can cause runtime
+    // issues. Gradle will auto-download a Java 21 JDK if one is not found locally.
+    def javaVersion = JavaVersion.toVersion(targetJavaVersion)
+    toolchain.languageVersion = JavaLanguageVersion.of(targetJavaVersion)
+    // Loom will automatically attach sourcesJar to a RemapSourcesJar task and to the "build" task
+    // if it is present.
+    // If you remove this line, sources will not be generated.
+    withSourcesJar()
+}
+
+jar {
+    from("LICENSE") {
+        rename { "${it}_${project.archives_base_name}" }
+    }
+}
+
+publishing {
+    // configure the maven publication
+    publications {
+        create("mavenJava", MavenPublication) {
+            artifactId = project.archives_base_name
+            from components.java
+        }
+    }
+
+    // See https://docs.gradle.org/current/userguide/publishing_maven.html for information on how to set up publishing.
+    repositories {
+        // Add repositories to publish to here.
+        // Notice that this block does NOT have the same function as the block in the top level.
+        // The repositories here will be used for publishing your artifact, not for
+        // retrieving artifacts.
+    }
+}
