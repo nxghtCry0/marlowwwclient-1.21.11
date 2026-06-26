@@ -10,7 +10,7 @@ The only official account of mine is now @firefox.lol
 
 # Marlow Client 2.2.0
 
-Marlow Client is an open-source Fabric client focused on combat automation, movement utilities, rendering tools, and quality-of-life systems for PvP-oriented gameplay. Newly rewritten and rearchitected for Minecraft 26.1.2.
+Marlow Client is a private Fabric client focused on combat automation, movement utilities, rendering tools, and quality-of-life systems for PvP-oriented gameplay. Newly rewritten and rearchitected for Minecraft 26.1.2.
 
 <a href="https://www.star-history.com/?repos=nxghtCry0%2Fmarlowwwclient&type=date&legend=top-left">
  <picture>
@@ -113,4 +113,4 @@ Build artifacts are generated in `build/libs/`. Use the main jar artifact, not t
 
 ## License
 
-This repository currently includes both `LICENSE.txt` and `GNU-LICENSE.md`, and `fabric.mod.json` declares `All-Rights-Reserved`. Review licensing files and metadata together before redistribution.
+This software is licensed under the terms of the All Rights Reserved license as defined in [LICENSE.txt](file:///c:/Users/teeja/Downloads/marlowwwclient-1.21.11-port/marlowwwclient-1.21.11/LICENSE.txt). Unauthorized distribution, modification, or reproduction is strictly prohibited.
